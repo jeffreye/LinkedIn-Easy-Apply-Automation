@@ -219,8 +219,8 @@ def writeToFile(filename,data,filemode):
     f.close()  
 
 def saveReportAsCSV():
-    appliedjobs = u"\n".join(unicode(i) for i in appliedEasyApplyJobsList)
-    failedjobs = u"\n".join(unicode(i) for i in failedEasyApplyJobsList)
+    appliedjobs = "\n".join(unicode(i).encode('utf-8') for i in appliedEasyApplyJobsList)
+    failedjobs = "\n".join(unicode(i).encode('utf-8') for i in failedEasyApplyJobsList)
     filename = dt.datetime.now().strftime('%m-%d-%Y-%H-%M-%S')
     f1 = '{0}-{1}.{2}'.format('applied',filename,'csv')
     f2 = '{0}-{1}.{2}'.format('failed',filename,'csv')
