@@ -1,8 +1,6 @@
 import time
 import json
-import pickle
 import JobData
-from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -12,33 +10,28 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver import ActionChains
 import ReportingModule as Report
 import datetime as dt
-import keyboard
-import win32api, win32con
+from sys import argv
+
 '''
 Reference: https://stackoverflow.com/questions/37088589/selenium-wont-open-a-new-url-in-a-new-tab-python-chrome
 https://stackoverflow.com/questions/28431765/open-web-in-new-tab-selenium-python
 https://stackoverflow.com/questions/39281806/python-opening-multiple-tabs-using-selenium
 '''
-calijobslink = "https://www.linkedin.com/jobs/search/?alertAction=viewjobs&keywords=Software%20Developer&location=95112%20San%20Jose%2C%20CA&locationId=POSTAL.us.95112"#Action link for sanjose alerts
-usualjobslink = "https://www.linkedin.com/jobs"
-username = "" # your email here
-password = "" # your password here
-jobTitle = "Software Engineer -senior -Senior" # your desired job title
-jobLocation = "Austin, Texas" # your desired job location
-resumeLocation = "" # your resume location on local machine
+print(argv)
+webdriver_path = argv[1]
+calijobslink = argv[2] #"https://www.linkedin.com/jobs/search/?distance=25&f_E=2&f_F=it%2Ceng&f_JT=F&f_LF=f_AL&keywords=Software%20Engineer&location=United%20States&locationId=us%3A0" 
+username = argv[3] # your email here
+password = argv[4] # your password here
+resumeLocation = argv[5] # your resume location on local machine
+output_path = argv[6]
 
 currentPageJobsList = []
 allEasyApplyJobsList=[]
 failedEasyApplyJobsList=[]
 appliedEasyApplyJobsList=[]
 
-def click(x,y):
-    win32api.SetCursorPos((x,y))
-    win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN,x,y,0,0)
-    win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP,x,y,0,0)
-
 def init_driver():
-    driver = webdriver.Chrome(executable_path = "./chromedriver.exe")
+    driver = webdriver.Chrome(executable_path = webdriver_path)
     driver.wait = WebDriverWait(driver, 10)
     return driver
 #enddef
@@ -60,72 +53,62 @@ def login(driver, username, password):
 #enddef
 
 def searchJobs(driver):
-    driver.get(usualjobslink)
-    time.sleep(5)
-    a=[]
-	
-    a = driver.find_elements_by_class_name("ember-view")
-    for i in a:
-        print (i.get_attribute("id"))
-    jobDescField = a[29]
-    print(jobDescField.get_attribute("id"))
-    locField = a[30]
-    print(jobDescField.get_attribute("id"))
-    search_button = driver.find_element_by_class_name("jobs-search-box__submit-button")
-    ac = ActionChains(driver)
-    ac.move_to_element(jobDescField).move_by_offset(10,10).click().perform()
-    time.sleep(1)
-    keyboard.write(jobTitle)
-    ac.move_to_element(locField).move_by_offset(10,10).click().perform()
-    time.sleep(1)
-    keyboard.write(jobLocation)
-	#jobDescField.send_keys(jobTitle)
-    #jobDescField.send_keys(Keys.TAB)
-    time.sleep(1)
-    #locField.send_keys(jobLocation)
-    time.sleep(1)
-    search_button.click()
-    time.sleep(2)   
-    j=0
 
+    start = 0
     while True:
+        driver.get(calijobslink + '&start=%d' % start)
         scheight = .1
         while scheight < 9.9:
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight/%s);" % scheight)
             scheight += .01
-        alljobsonpage = driver.find_elements_by_class_name("card-list__item")
+        alljobsonpage = driver.find_element_by_class_name('jobs-search-results__list').find_elements_by_class_name("card-list__item")
+        links = []
         for i in alljobsonpage:
-
+            # time.sleep(1)   
             try:
-                easyapply = i.find_element_by_class_name("job-card-search__easy-apply")
-                link = i.find_element_by_class_name("job-card-search__link-wrapper")
-                job = convertJobElement(i)
-                currentPageJobsList.append(job)
-                allEasyApplyJobsList.append(job)
-            except:
+
+                # easy apply text
+                i.find_element_by_class_name("job-card-search__easy-apply-text")
+
+                # click and retrieve more info
+                i.click()
+
+                # wait for easy apply button to show up
+                time.sleep(0.5)
+
+                title = i.find_element_by_class_name('job-card-search__title').get_attribute('innerText').strip()
+                company = i.find_element_by_class_name('job-card-search__company-name').get_attribute('innerText').strip()
+                city = i.find_element_by_class_name('job-card-search__location').get_attribute('innerText').strip()
+                link = driver.find_element_by_css_selector("a.jobs-details-top-card__job-title-link").get_attribute('href')
+
+                status = driver.find_element_by_class_name('jobs-s-apply')
+                if 'Applied' in status.get_attribute('innerHTML'):
+                    print('applied')
+                    continue
+                else:
+                    print(link)
+
+                job = JobData.JobData(title,company, link, city)
+                links.append(job)
+                # time.sleep(1)   
+            except Exception as e:
+                print(e)
                 print("Not Easy Apply")
             print("____________________________")
-        loopThroughJobs(driver,currentPageJobsList)
-        try:
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(1)
-            print("Next Button")
-            
-            nextButton = driver.find_element_by_class_name('next')
-            nextButton.click()
-            del currentPageJobsList[:]
-        except:
-            break
+        loopThroughJobs(driver,links)
+        start += 25
+        del currentPageJobsList[:]
         
     print("____________________________")
 
 
 def loopThroughJobs(driver,jobsList):
-    #applyToJob(driver,jobsList[0])
     for i in jobsList:
-        #time.sleep(30)
-        if(applyToJob(driver,i)):
-            continue
+        print("____________________________")
+        if(applyToJob(driver, i.link)):
+            print(i.company)
+            print(i.jobTitle)
+
     allwindows = driver.window_handles
     if(len(allwindows) == 2):
         driver.switch_to_window(allwindows[1])
@@ -133,16 +116,10 @@ def loopThroughJobs(driver,jobsList):
         driver.switch_to_window(allwindows[0])
 
 def applyToJob(driver,job):
-    
-    window_before = driver.window_handles[0]
-    if job:
-        execScript = "window.open('"+job.link+"', 'CurrJob');"
-    else:
-        return False
-    driver.execute_script(execScript)
-    window_after = driver.window_handles[1]
-    driver.switch_to_window(window_after)
-    time.sleep(3)
+    driver.execute_script( "window.open('"+job+"', 'CurrJob');")
+    company_window = driver.window_handles[1]
+    driver.switch_to_window(company_window)
+    time.sleep(2)
     # Dont Change This setting
     scheight = 4
     while scheight < 9.9:
@@ -153,71 +130,72 @@ def applyToJob(driver,job):
 
     # Unlock this section for applying jobs
     try:
-        div = driver.find_element_by_class_name("jobs-details-top-card__actions")
-        applyButton = div.find_element_by_class_name("jobs-s-apply__button")
+        # div = driver.find_element_by_class_name("jobs-details-top-card__actions")
+        applyButton = driver.find_element_by_class_name("jobs-s-apply__button")
         applyButton.click()
-        print("clicked on easyapply")
         time.sleep(5)
     except:
         print("Found None")
 
-    try:
-        #driver.find_element_by_css_selector('input[type="file"]').clear()
-        #driver.find_element_by_css_selector('input[type="file"]').send_keys(resumeLocation)
-        click(610,505)
+    # a new tab opened
+    if len(driver.window_handles) == 3:
+        driver.switch_to_window(driver.window_handles[2])
+        try:
+            # auth
+            driver.execute_script('$("#ember617-answer").click()')
+        except:
+            pass
+
+        try:
+            # h1b
+            driver.execute_script('$("#ember622-answer").click()')
+        except:
+            pass
+
+        try:
+            driver.execute_script('$("#follow-company-question").click()')
+        except:
+            pass
+
         time.sleep(1)
-        keyboard.write("resume.pdf")
-        time.sleep(1)
-        keyboard.press_and_release('Enter')
-        time.sleep(3)
-        click(410,440)
-        time.sleep(1)
-        keyboard.write("(757)439-0083")
-        time.sleep(3)
-        submitButton = driver.find_element_by_class_name('jobs-apply-form__submit-button')
-        submitButton.click()
-        time.sleep(1)
-        appliedEasyApplyJobsList.append(job)
-        time.sleep(3)
-        return True
-        
-    except:
-        failedEasyApplyJobsList.append(job)
-        allwindows = driver.window_handles
-        if(len(allwindows) == 3):
-            currWindow  = allwindows[2]
-            driver.switch_to_window(currWindow)
+        try:
+            #submit
+            driver.execute_script('$("button.continue-btn").click()')
+        except Exception as e:
+            print('fail')
+            print(e)
+            failedEasyApplyJobsList.append(job)
+            return False
+        else:
+            appliedEasyApplyJobsList.append(job)
+            print("applied " + job)
+            return True
+        finally:
+            time.sleep(1)
+            # close this tab and switch back
             driver.close()
-            driver.switch_to_window(window_after)
-            
-        return False
+            driver.switch_to_window(company_window)
+    else:
 
-    driver.close()
+        try:
+            driver.find_element_by_id('file-browse-input').send_keys(resumeLocation)
+            driver.execute_script('$("#follow-company").click()')
+            time.sleep(3)
+            # submit
+            driver.find_element_by_css_selector('button.jobs-apply-form__submit-button').click()
+        except Exception as e:
+            print('fail')
+            print(e)
+            failedEasyApplyJobsList.append(job)
+            return False
+        else:
+            print("applied " + job)
+            appliedEasyApplyJobsList.append(job)
+            return True
+        finally:
+            time.sleep(1)
+
     return False
-    
-
-def convertJobElement(i):
-    try:
-        html = i.get_attribute("innerHTML")
-        soup = BeautifulSoup(html, "html.parser")
-        #title = soup.find("h3", {"class" : "job-card__title"}).getText().strip()
-        title = ""
-		#print("Job Title:" + title)
-        #company = soup.find("h4", {"class" : "job-card__company-name"}).getText().strip()
-        company = ""
-        #print("Company:" + company)
-        link = i.find_element_by_class_name("job-card-search__link-wrapper").get_attribute('href')
-        link = soup.find("a", {"class" : "job-card-search__link-wrapper"})['href']
-        #print("Link:" + link)
-        city = ""
-        #city = soup.find("h5", {"class" : "job-card__location"}).getText().strip().replace("Job Location","")
-        #print("City:" + city.strip())
-        curr = JobData.JobData(title,company,link,city.strip(),html)
-        print(curr)
-        return curr
-    except:
-        print("Howdy !!! Unable to convert JobElement")
-        return None
 
 
 def sendReportToEmail():
@@ -237,7 +215,7 @@ def writeToFile(filename,data,filemode):
 def saveReportAsCSV():
     appliedjobs = "\n".join(str(i) for i in appliedEasyApplyJobsList)
     failedjobs = "\n".join(str(i) for i in failedEasyApplyJobsList)
-    filename = dt.datetime.now().strftime('%m-%d-%Y-%H-%M-%S')
+    filename = output_path
     f1 = '{0}-{1}.{2}'.format('applied',filename,'csv')
     f2 = '{0}-{1}.{2}'.format('failed',filename,'csv')
     writeToFile(f1,appliedjobs,"w+")
@@ -252,7 +230,7 @@ if __name__ == "__main__":
     login(driver, username, password)
     time.sleep(1)
     searchJobs(driver)
-    sendReportToEmail()
+    # sendReportToEmail()
     saveReportAsCSV()
 
 
