@@ -8,5 +8,8 @@ class JobData:
     def __str__(self):
         return self.jobTitle+','+self.company+','+self.link+','+self.city
 
+    def __unicode__(self):
+        return self.jobTitle+','+self.company+','+self.link+','+self.city
+
     def __repr__(self):
         return str(self)

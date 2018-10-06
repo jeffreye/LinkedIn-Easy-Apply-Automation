@@ -20,10 +20,10 @@ $ pip install selenium
 
 Run the program with parameters
 ```sh
-$ python LinkedInEasyApply.py <path-to-webdriver> <search-link>  <username> <password> <path-to-resume-file> <path-to-output>
+$ python LinkedInEasyApply.py <path-to-webdriver> <search-link>  <username> <password> <path-to-resume-file>
 ```
 
 e.g.
 ```sh
-$ python LinkedInEasyApply.py "./chromedriver" "https://www.linkedin.com/jobs/search/?distance=25&f_E=2&f_F=it%2Ceng&f_JT=F&f_LF=f_AL&keywords=Software%20Engineer&location=United%20States&locationId=us%3A0"  "mylinkedin@gmail.com" "mypassword" "myresume.pdf" "output.csv"
+$ python LinkedInEasyApply.py "./chromedriver" "https://www.linkedin.com/jobs/search/?distance=25&f_E=2&f_F=it%2Ceng&f_JT=F&f_LF=f_AL&keywords=Software%20Engineer&location=United%20States&locationId=us%3A0"  "mylinkedin@gmail.com" "mypassword" "myresume.pdf"
 ```
